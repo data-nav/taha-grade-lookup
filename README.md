@@ -55,23 +55,17 @@ You need:
   3. Share the spreadsheet with the service account's email as **Editor**
      (it writes into the template sheets, as the Apps Script did).
 
-On the server:
+On the server, download this code, save the key to
+`/opt/mt/service-account.json`, then run the one-command setup:
 
-    sudo apt-get update
-    sudo apt-get install -y python3-venv nginx certbot python3-certbot-nginx git
-    sudo useradd --system --home /opt/mt marksheet
-    sudo git clone <this repo> /opt/mt/app
-    sudo python3 -m venv /opt/mt/venv
-    sudo /opt/mt/venv/bin/pip install -r /opt/mt/app/requirements.txt
-    # copy the service account key to /opt/mt/service-account.json
-    sudo cp /opt/mt/app/deploy/marksheet.env.example /opt/mt/marksheet.env   # fill in MT_SHEET_ID
-    sudo chown -R marksheet: /opt/mt && sudo chmod 600 /opt/mt/marksheet.env /opt/mt/service-account.json
-    sudo cp /opt/mt/app/deploy/marksheet.service /etc/systemd/system/
-    sudo systemctl enable --now marksheet
-    sudo cp /opt/mt/app/deploy/nginx.conf /etc/nginx/sites-available/marksheet   # set your domain in it
-    sudo ln -s ../sites-available/marksheet /etc/nginx/sites-enabled/
-    sudo systemctl reload nginx
-    sudo certbot --nginx -d <your domain>
+    sudo bash deploy/install.sh
+
+It asks for the spreadsheet ID and (optionally) your domain, installs
+everything, starts the app and sets up HTTPS. Run it again after `git pull`
+to update; your settings are kept.
+
+The full click-by-click guide, with diagrams of how it works, is in
+`docs/system-design.html` (also shared as a PDF).
 
 Point your domain's A record at the server (on EC2 use an Elastic IP).
 Security group: open ports 80 and 443, plus 22 for yourself.

@@ -119,7 +119,7 @@
   </figure>
 
   <div class="cols">
-    <div class="box info"><b>1 · Read</b><br>One request reads all program data sheets. The result is reused for 30 seconds, so a search is fast.</div>
+    <div class="box info"><b>1 · Read</b><br>Reads the Sheet fresh on every search: just the header rows, the Student ID columns and the student's own row. No copies, no cache.</div>
     <div class="box info"><b>2 · Write</b><br>The student's marks go into <i>that program's</i> Marksheet and Transcript sheets.</div>
     <div class="box info"><b>3 · Export</b><br>Google turns those two sheets into PDFs. The app sends them back to the browser.</div>
   </div>
@@ -145,10 +145,10 @@
         <rect x="252" y="10" width="216" height="118" rx="10" fill="#fff" stroke="#1d2433"/>
         <circle cx="276" cy="34" r="13" fill="#1d2433"/><text x="276" y="38.5" text-anchor="middle" fill="#fff" font-weight="700" font-size="12">2</text>
         <text x="298" y="38" font-weight="700" font-size="11.5">Read the data sheets</text>
-        <text x="270" y="62" fill="#5b6475">All 8 program sheets in one</text>
-        <text x="270" y="76" fill="#5b6475">request, reused for 30 seconds.</text>
-        <text x="270" y="98" fill="#5b6475">New marks typed in the Sheet</text>
-        <text x="270" y="112" fill="#5b6475">appear within 30 seconds.</text>
+        <text x="270" y="62" fill="#5b6475">Fresh from the Google Sheet</text>
+        <text x="270" y="76" fill="#5b6475">every time: only the ID columns</text>
+        <text x="270" y="90" fill="#5b6475">and the student's own row.</text>
+        <text x="270" y="112" fill="#15803d" font-weight="600">A mark typed in is used at once.</text>
 
         <line x1="470" y1="69" x2="496" y2="69" stroke="#5b6475" stroke-width="1.6" marker-end="url(#a2)"/>
         <rect x="498" y="10" width="216" height="118" rx="10" fill="#fff" stroke="#1d2433"/>
@@ -224,7 +224,7 @@
     <tr><td>Data and templates</td><td>The Google Sheet</td><td>The same Google Sheet, unchanged</td></tr>
     <tr><td>Who makes the PDFs</td><td>Google</td><td>Google (same output)</td></tr>
     <tr><td>Web address</td><td>script.google.com/…</td><td>Our own domain with HTTPS</td></tr>
-    <tr><td>Speed</td><td>About 10 seconds</td><td>Faster data reading (one request, reused 30 s); PDF time is Google's</td></tr>
+    <tr><td>Data freshness</td><td>Read fresh on every search</td><td>Read fresh on every search (three small requests instead of all 8 sheets)</td></tr>
     <tr><td>Adding a program</td><td>Sheets + one entry in Code.gs</td><td>Sheets + one entry in engine.py</td></tr>
     <tr><td>Google access</td><td>Your Google account</td><td>A "robot" Google account (service account) with Editor access</td></tr>
   </table>
@@ -245,7 +245,8 @@
   <div class="box good">
     <p><span class="check">✓</span> <b>Same results as Code.gs for every student.</b> The original Code.gs and the new engine were run side by side on all 9,507 students in the workbook, across all 8 programs: 0 differences in marks, grades, averages or transcript choice.</p>
     <p><span class="check">✓</span> <b>Same cells written.</b> 960 marksheets and transcripts filled by both methods were compared cell by cell: identical.</p>
-    <p><span class="check">✓</span> <b>Full search tested</b> against a stand-in for Google built from the real templates, one student per program: the right sheets were filled and exported.</p>
+    <p><span class="check">✓</span> <b>Live reading tested</b> against a stand-in for Google's API built from the real workbook: 8,382 IDs looked up (1,080 of them in two programs), 0 differences; a mark edited in the Sheet was used by the very next search.</p>
+    <p><span class="check">✓</span> <b>Full search tested</b> one student per program: the right sheets were filled and exported.</p>
     <p><b>Still to do:</b> the first run against the real Google Sheet, once the service account exists (Part A).</p>
   </div>
 

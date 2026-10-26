@@ -26,7 +26,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
-import engine
 from datasource import LocalXlsxSource, GoogleSheetSource
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -37,9 +36,7 @@ def _make_backend():
     if os.environ.get("MT_SHEET_ID"):
         from gsheets import GoogleSheetRenderer
         sheet_id, sa_json = os.environ["MT_SHEET_ID"], os.environ["MT_SA_JSON"]
-        source = GoogleSheetSource(sheet_id, sa_json,
-                                   [p["dataSheet"] for p in engine.PROGRAMS],
-                                   ttl=float(os.environ.get("MT_CACHE_SECONDS", "30")))
+        source = GoogleSheetSource(sheet_id, sa_json)
         renderer = GoogleSheetRenderer(sheet_id, sa_json)
         return lambda sid, key: renderer.generate(source, sid, key)
 

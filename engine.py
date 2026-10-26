@@ -422,9 +422,13 @@ def read_student(values, sid, program):
     titled = [c for c in range(len(header))
               if c not in skip and header[c] is not None and str(header[c]).strip()]
 
+    # The Sheets API trims empty cells at the end of each row, and the last
+    # module's merged title leaves row 1 short, so the last module runs to the
+    # widest of the three rows.
+    width = max(len(header), len(sub), len(row))
     modules = {}
     for i, start in enumerate(titled):
-        end = titled[i + 1] if i + 1 < len(titled) else len(header)
+        end = titled[i + 1] if i + 1 < len(titled) else width
         name = str(header[start]).strip()
         parts = {k: [] for k in ("assignment", "quiz", "participation", "midterm",
                                  "final", "theory", "practical", "presentation")}
@@ -575,11 +579,15 @@ def lookup(source, raw_id, program_key=None):
     if not sid:
         raise ValueError("Please enter a Student ID.")
 
+    programs = [p for p in PROGRAMS if not program_key or p["key"] == program_key]
+    if hasattr(source, "rows_for"):        # live Sheet: fetch just the header rows + the student's row
+        tables = source.rows_for(sid, [p["dataSheet"] for p in programs])
+    else:
+        tables = {p["dataSheet"]: source.values(p["dataSheet"]) for p in programs}
+
     matches = []
-    for p in PROGRAMS:
-        if program_key and p["key"] != program_key:
-            continue
-        student = read_student(source.values(p["dataSheet"]), sid, p)
+    for p in programs:
+        student = read_student(tables[p["dataSheet"]], sid, p)
         if student:
             matches.append((p, student))
 

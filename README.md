@@ -72,9 +72,10 @@ Security group: open ports 80 and 443, plus 22 for yourself.
 
 ## Notes
 
-- Data freshness: the data sheets are read in one API call and reused for
-  `MT_CACHE_SECONDS` (default 30 seconds). Marks typed into the Sheet show up
-  within that time. Set it to 0 to always read fresh.
+- Data freshness: every lookup reads the Google Sheet fresh (three small
+  requests: the header rows, the Student ID columns, and the student's row),
+  so a mark typed into the Sheet is used by the very next lookup. Nothing is
+  cached and no copy of the data is kept on the server.
 - One lookup at a time: the template sheets are shared, so lookups take turns
   (like the Apps Script lock). If the Apps Script web app is still in use at the
   same time, the two can't see each other's lock, so retire the old web app

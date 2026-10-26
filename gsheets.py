@@ -233,7 +233,8 @@ class GoogleSheetRenderer:
             self._id, urllib.parse.urlencode(params))
         res = self._http.get(url, timeout=120)
         if res.status_code != 200:
-            raise RuntimeError("PDF export failed (HTTP %d)." % res.status_code)
+            raise RuntimeError("PDF export failed (HTTP %d). Check that the spreadsheet is shared "
+                               "with the service account as Editor." % res.status_code)
         return res.content
 
     def generate(self, source, raw_id, program_key=None):

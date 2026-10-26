@@ -9,11 +9,11 @@ User=marksheet
 Group=marksheet
 WorkingDirectory=/opt/mt/app
 EnvironmentFile=/opt/mt/marksheet.env
-# One worker: rendering is serialized by a lock, and the data cache is per process
+# One worker: lookups take turns on the shared template sheets (in-process lock)
 ExecStart=/opt/mt/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 1
 Restart=on-failure
 RestartSec=5
-# LibreOffice keeps its profile in /tmp; give the service a private /tmp
+# Private /tmp for the service
 PrivateTmp=true
 NoNewPrivileges=true
 

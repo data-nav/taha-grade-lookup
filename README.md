@@ -1,108 +1,98 @@
-# Marksheet & Transcript Viewer - EC2 port (Phase 1)
+# Marksheet & Transcript Viewer (server version)
 
-A drop-in replacement for the Google Apps Script web app. Same look, same
-behaviour (enter a Student ID, get the marksheet + transcript preview and one
-combined PDF). The difference is where it runs: compute, rendering and hosting
-move off Apps Script.
+The same app as the Google Apps Script web app: enter a Student ID, get the
+marksheet + transcript preview and one combined PDF. It runs on your own server
+(e.g. AWS EC2) instead of inside Apps Script.
 
-## What changed vs Apps Script
+## How it works
 
-- Marks logic: ported line-for-line from Code.gs (`engine.py`). Same PROGRAMS
-  config, grade scales, aliases, credential rules, cell mappings.
-- PDF rendering: Google's spreadsheet-to-PDF export is gone. The same .xlsx
-  template sheets are filled with openpyxl and rendered by LibreOffice headless
-  (`render.py`). Output is near-identical.
-- Hosting: a small FastAPI app (`app.py`) serves the page and a `/api/lookup`
-  endpoint. `doGet` -> `GET /`, `getStudentDocuments` -> `POST /api/lookup`.
-- Frontend: `static/index.html` is the original, with one function changed
-  (`google.script.run` -> `fetch`). Response shape is identical, so preview,
-  merge and download are untouched.
+It stays connected to the Google Sheet, just like the Apps Script:
+
+1. Finds the student in the program data sheets (IBA, HT, CSW, MOA, AC2 (New),
+   AC2 (Old), PSW, ECA).
+2. Writes their marks into **that program's** Marksheet and Transcript sheets
+   in the Google Sheet (e.g. AC2 (Old) -> "AC2 (Old) Marksheet" and
+   "AC2 (Old) Transcript").
+3. Asks Google to turn those two sheets into PDFs, and shows them.
+
+Because the template sheets are read from the Google Sheet on every lookup,
+any change you make to a template in Google Sheets is used immediately, and
+the PDFs look exactly like the Apps Script ones (Google makes them).
+
+The marks logic in `engine.py` is a line-for-line port of Code.gs; it was
+checked against the original Code.gs on every student in the workbook
+(9,507 students, 0 differences).
+
+## Adding a new program
+
+Same as with the Apps Script:
+
+1. In the Google Sheet, add the program's data sheet plus its
+   "<Name> Marksheet" and "<Name> Transcript" sheets.
+2. Add one entry for it to `PROGRAMS` in `engine.py` (copy the closest
+   existing program and change the sheet names and cell positions), then
+   restart the app (`sudo systemctl restart marksheet`).
 
 ## Files
 
-    engine.py          marks logic (pure, no web/Google dependency)
-    render.py          fill templates + LibreOffice PDF render + merge
-    datasource.py      where the data comes from (local file, or live Sheet)
-    app.py             FastAPI web app
-    build_templates.py one-off: make the slim templates.xlsx
-    static/index.html  frontend
-    requirements.txt
+    engine.py          marks logic and program settings (port of Code.gs)
+    gsheets.py         fills the Google Sheet templates and exports the PDFs
+    datasource.py      reads the data sheets (Google Sheet, or a local .xlsx)
+    app.py             the web app
+    static/index.html  the page (Index.html with google.script.run -> fetch)
+    deploy/            server setup files (systemd, nginx, settings)
+    apps-script/       the original Apps Script, for reference
+    render.py, build_templates.py   offline test mode only (see below)
 
-## Local run (file mode, no Google)
+## Setting it up on a server
 
-    pip install -r requirements.txt
-    sudo apt-get install -y libreoffice-calc        # or the full libreoffice
+You need:
+- A Linux server (e.g. AWS EC2, Ubuntu) and a domain name if you want one.
+- A Google Cloud **service account** (a "robot" Google account for the app):
+  1. In Google Cloud Console, create a project, enable the **Google Sheets API**
+     and **Google Drive API**.
+  2. Create a service account and download its JSON key file.
+  3. Share the spreadsheet with the service account's email as **Editor**
+     (it writes into the template sheets, as the Apps Script did).
+
+On the server:
+
+    sudo apt-get update
+    sudo apt-get install -y python3-venv nginx certbot python3-certbot-nginx git
+    sudo useradd --system --home /opt/mt marksheet
+    sudo git clone <this repo> /opt/mt/app
+    sudo python3 -m venv /opt/mt/venv
+    sudo /opt/mt/venv/bin/pip install -r /opt/mt/app/requirements.txt
+    # copy the service account key to /opt/mt/service-account.json
+    sudo cp /opt/mt/app/deploy/marksheet.env.example /opt/mt/marksheet.env   # fill in MT_SHEET_ID
+    sudo chown -R marksheet: /opt/mt && sudo chmod 600 /opt/mt/marksheet.env /opt/mt/service-account.json
+    sudo cp /opt/mt/app/deploy/marksheet.service /etc/systemd/system/
+    sudo systemctl enable --now marksheet
+    sudo cp /opt/mt/app/deploy/nginx.conf /etc/nginx/sites-available/marksheet   # set your domain in it
+    sudo ln -s ../sites-available/marksheet /etc/nginx/sites-enabled/
+    sudo systemctl reload nginx
+    sudo certbot --nginx -d <your domain>
+
+Point your domain's A record at the server (on EC2 use an Elastic IP).
+Security group: open ports 80 and 443, plus 22 for yourself.
+
+## Notes
+
+- Data freshness: the data sheets are read in one API call and reused for
+  `MT_CACHE_SECONDS` (default 30 seconds). Marks typed into the Sheet show up
+  within that time. Set it to 0 to always read fresh.
+- One lookup at a time: the template sheets are shared, so lookups take turns
+  (like the Apps Script lock). If the Apps Script web app is still in use at the
+  same time, the two can't see each other's lock, so retire the old web app
+  link once the server version is live.
+- Access: like the current deployment (`ANYONE_ANONYMOUS`), anyone with the
+  link can look up any ID. Put the server behind a login if that's not wanted.
+
+## Offline test mode (no Google)
+
+For testing without Google credentials: reads an .xlsx export and renders the
+PDFs with LibreOffice. The look is close to, but not exactly, Google's.
+
+    sudo apt-get install -y libreoffice-calc fonts-liberation
     python3 build_templates.py "Web Host.xlsx" templates.xlsx
-    export MT_TEMPLATE=templates.xlsx
-    export MT_LOCAL_XLSX="Web Host.xlsx"
-    uvicorn app:app --host 0.0.0.0 --port 8000
-
-Open http://localhost:8000 and enter a Student ID.
-
-## Production (live Google Sheet) on EC2
-
-The data still comes from the current Sheet, read through the Sheets API.
-
-1. Service account: in Google Cloud, create a service account, enable the
-   Sheets API, download its JSON key. Share the spreadsheet with the service
-   account's email (Viewer is enough).
-
-2. On the instance (Ubuntu):
-
-        sudo apt-get update
-        sudo apt-get install -y python3-venv libreoffice-calc fonts-liberation
-        python3 -m venv /opt/mt/venv && /opt/mt/venv/bin/pip install -r requirements.txt
-        # copy the full export once, build templates:
-        /opt/mt/venv/bin/python build_templates.py "Web Host.xlsx" /opt/mt/templates.xlsx
-
-3. Environment:
-
-        MT_TEMPLATE=/opt/mt/templates.xlsx
-        MT_SHEET_ID=<the spreadsheet id>
-        MT_SA_JSON=/opt/mt/service-account.json
-
-4. Run under systemd and put nginx in front. Ready-made files are in `deploy/`:
-
-        sudo useradd --system --home /opt/mt marksheet
-        sudo cp deploy/marksheet.env.example /opt/mt/marksheet.env   # then fill it in
-        sudo cp deploy/marksheet.service /etc/systemd/system/
-        sudo systemctl enable --now marksheet
-        sudo cp deploy/nginx.conf /etc/nginx/sites-available/marksheet  # set your domain
-        sudo ln -s ../sites-available/marksheet /etc/nginx/sites-enabled/
-        sudo certbot --nginx -d <your domain>
-
-5. Point your domain's A record at the instance (use an Elastic IP so it
-   survives restarts). Security group: open 80 and 443 only, plus 22 for you.
-
-## Notes / known tweaks
-
-- The fonts package matters. Install `fonts-liberation` (and the family the
-  templates use) so LibreOffice renders text the same as the samples.
-- First render after a restart pays LibreOffice's cold start once (~30s). Every
-  render after is ~2-3s. A warm-up call to `/healthz` isn't enough; hit
-  `/api/lookup` once after deploy to prime it, or send one dummy conversion at
-  startup.
-- Page setup: each template sheet keeps its own orientation (marksheets
-  landscape, transcripts portrait); only Letter size, fit-to-page and the
-  print range are forced.
-- Pillow is required. Without it openpyxl silently drops the logo and
-  signature images from the templates.
-- Data freshness: the live-Sheet source fetches all data sheets in one API call
-  and reuses them for `MT_CACHE_SECONDS` (default 30). Set it to 0 to always
-  read fresh (each lookup then waits on one Sheets API call).
-- Concurrency: rendering is serialized by a lock (the LibreOffice profile is
-  shared). Fine for staff lookups. If you ever need parallelism, give each
-  worker its own profile dir.
-
-## Access caveat
-
-Standing up the EC2 instance needs AWS permissions to launch EC2 + configure
-IAM/security groups. The SES/S3/CloudFront keys in the Colab notebook almost
-certainly don't carry that. Confirm you can provision an instance (or use
-Lightsail / a container host) before wiring the domain.
-
-## Phase 2 (off Google entirely)
-
-Only `datasource.py` changes. Swap `GoogleSheetSource` for a DB-backed or
-uploaded-export source with the same `.values(sheet_name)` method. Nothing in
-`engine.py`, `render.py` or `app.py` needs to change.
+    MT_LOCAL_XLSX="Web Host.xlsx" MT_TEMPLATE=templates.xlsx uvicorn app:app --port 8000

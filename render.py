@@ -195,25 +195,10 @@ def generate(template_xlsx, source, raw_id, program_key=None, out_dir=None):
     Returns dict: either {"ambiguous": [...]} or the student result with a
     combined PDF path. Mirrors getStudentDocuments in Code.gs.
     """
-    sid = str("" if raw_id is None else raw_id).strip()
-    if not sid:
-        raise ValueError("Please enter a Student ID.")
-
-    matches = []
-    for p in E.PROGRAMS:
-        if program_key and p["key"] != program_key:
-            continue
-        student = E.read_student(source.values(p["dataSheet"]), sid, p)
-        if student:
-            matches.append((p, student))
-
-    if not matches:
-        raise ValueError('No student found with ID "%s".' % sid)
-    if len(matches) > 1:
-        return {"ambiguous": [{"key": p["key"], "label": p["label"],
-                               "name": s["fullName"]} for p, s in matches]}
-
-    program, student = matches[0]
+    found = E.lookup(source, raw_id, program_key)
+    if found.get("ambiguous"):
+        return found
+    program, student = found["program"], found["student"]
     pass_sheet, T = E.choose_transcript(program, student)
 
     work = out_dir or tempfile.mkdtemp(prefix="mt_")

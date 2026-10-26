@@ -561,3 +561,31 @@ def build_transcript_block(student, template_names, program):
         "average": "" if avg_points is None else avg_points / 100.0,
         "averageGrade": "" if avg_points is None else grade_for_(avg_points, avg_scale, True),
     }
+
+
+# ============================== LOOKUP ==============================
+
+def lookup(source, raw_id, program_key=None):
+    """
+    Mirrors the search part of getStudentDocuments in Code.gs. source has
+    .values(sheet_name) -> 2D list. Returns {"ambiguous": [...]} when the ID is
+    in several programs, else {"program": program, "student": student}.
+    """
+    sid = str("" if raw_id is None else raw_id).strip()
+    if not sid:
+        raise ValueError("Please enter a Student ID.")
+
+    matches = []
+    for p in PROGRAMS:
+        if program_key and p["key"] != program_key:
+            continue
+        student = read_student(source.values(p["dataSheet"]), sid, p)
+        if student:
+            matches.append((p, student))
+
+    if not matches:
+        raise ValueError('No student found with ID "%s".' % sid)
+    if len(matches) > 1:
+        return {"ambiguous": [{"key": p["key"], "label": p["label"],
+                               "name": s["fullName"]} for p, s in matches]}
+    return {"program": matches[0][0], "student": matches[0][1]}

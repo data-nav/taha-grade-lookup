@@ -1,0 +1,9 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+openpyxl>=3.1
+pypdf>=4.0
+pillow>=10.0           # openpyxl drops the logo/signature images without it
+pydantic>=2.6
+# Phase 1 production data source (live Google Sheet). Not needed in local/file mode.
+google-api-python-client>=2.120
+google-auth>=2.29

@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+# Student data: never commit the workbook, the built templates or service-account keys
+*.xlsx
+*.json
+!static/*.json
+*.pdf
+*.env

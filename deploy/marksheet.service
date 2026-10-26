@@ -1,0 +1,21 @@
+# /etc/systemd/system/marksheet.service
+[Unit]
+Description=Marksheet & Transcript Viewer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=marksheet
+Group=marksheet
+WorkingDirectory=/opt/mt/app
+EnvironmentFile=/opt/mt/marksheet.env
+# One worker: rendering is serialized by a lock, and the data cache is per process
+ExecStart=/opt/mt/venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=5
+# LibreOffice keeps its profile in /tmp; give the service a private /tmp
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

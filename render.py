@@ -20,6 +20,7 @@ import datetime
 import openpyxl
 from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.worksheet.properties import PageSetupProperties
+from openpyxl.worksheet.page import PageMargins
 from pypdf import PdfReader, PdfWriter
 
 import engine as E
@@ -125,9 +126,13 @@ def _isnum(s):
 # ------------------------------- page setup + PDF -------------------------------
 
 def _apply_page_setup(ws, a1range):
-    # Honour the template's own orientation, centering and margins (the marksheet
-    # is authored landscape+centered, the transcript portrait). Only enforce what
-    # the PDF needs: Letter paper, fit the range onto one page, and the range itself.
+    # Honour the template's own orientation (the marksheet is authored landscape,
+    # the transcript portrait). Margins and alignment follow the Apps Script export:
+    # 0.25" margins, centered across, pinned to the top.
+    m = E.PDF_SETTINGS["margin"]
+    ws.page_margins = PageMargins(left=m, right=m, top=m, bottom=m, header=0, footer=0)
+    ws.print_options.horizontalCentered = True
+    ws.print_options.verticalCentered = False
     ws.page_setup.paperSize = ws.PAPERSIZE_LETTER
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 1

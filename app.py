@@ -8,7 +8,7 @@ filename/marksheetBase64/transcriptBase64).
 Production (connected to the live Google Sheet; marks are written into its
 template sheets and Google makes the PDFs, exactly like the Apps Script):
     export MT_SHEET_ID=<spreadsheet id>
-    export MT_SA_JSON=/opt/mt/service-account.json
+    export MT_SA_JSON=/opt/mt/service-account.json   # or MT_SA_JSON_CONTENT=<the key's JSON text>
     uvicorn app:app --host 127.0.0.1 --port 8000   # behind nginx
 
 Offline test mode (no Google; reads an .xlsx export, renders with LibreOffice):
@@ -31,11 +31,25 @@ from datasource import LocalXlsxSource, GoogleSheetSource
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def _service_account_file():
+    """Path of the service account key: MT_SA_JSON (a file), or MT_SA_JSON_CONTENT
+    (the key's JSON text, for hosts that only take environment variables)."""
+    if os.environ.get("MT_SA_JSON"):
+        return os.environ["MT_SA_JSON"]
+    content = os.environ.get("MT_SA_JSON_CONTENT", "").strip()
+    if not content:
+        raise RuntimeError("Set MT_SA_JSON (path) or MT_SA_JSON_CONTENT (the key's JSON).")
+    fd, path = tempfile.mkstemp(prefix="mt_sa_", suffix=".json")
+    with os.fdopen(fd, "w") as f:
+        f.write(content)
+    return path
+
+
 def _make_backend():
-    """Returns (data source, generate(id, programKey) -> result with PDF bytes)."""
+    """Returns generate(id, programKey) -> result with PDF bytes."""
     if os.environ.get("MT_SHEET_ID"):
         from gsheets import GoogleSheetRenderer
-        sheet_id, sa_json = os.environ["MT_SHEET_ID"], os.environ["MT_SA_JSON"]
+        sheet_id, sa_json = os.environ["MT_SHEET_ID"], _service_account_file()
         source = GoogleSheetSource(sheet_id, sa_json)
         renderer = GoogleSheetRenderer(sheet_id, sa_json)
         return lambda sid, key: renderer.generate(source, sid, key)

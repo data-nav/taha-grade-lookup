@@ -44,18 +44,33 @@ Same as with the Apps Script:
     apps-script/       the original Apps Script, for reference
     render.py, build_templates.py   offline test mode only (see below)
 
-## Setting it up on a server
+## Hosting it
 
-You need:
-- A Linux server (e.g. AWS EC2, Ubuntu) and a domain name if you want one.
-- A Google Cloud **service account** (a "robot" Google account for the app):
-  1. In Google Cloud Console, create a project, enable the **Google Sheets API**
-     and **Google Drive API**.
-  2. Create a service account and download its JSON key file.
-  3. Share the spreadsheet with the service account's email as **Editor**
-     (it writes into the template sheets, as the Apps Script did).
+You need a Google **service account** either way (a "robot" Google account the
+app signs in as). Steps are in `docs/system-design.html`, Part A. In short:
+Google Cloud Console -> new project -> enable Google Sheets API and Google
+Drive API -> create a service account -> create a JSON key -> share the
+spreadsheet with the service account's email as **Editor** -> copy the
+spreadsheet ID from the Sheet's web address.
 
-On the server, download this code, save the key to
+### Easiest: Render (hosts straight from GitHub, redeploys on every push)
+
+1. Sign up at render.com with your GitHub account.
+2. Dashboard -> **New** -> **Blueprint** -> pick this repository. Render reads
+   `render.yaml`.
+3. It asks for two values: `MT_SHEET_ID` (the spreadsheet ID) and
+   `MT_SA_JSON_CONTENT` (open the downloaded key file in a text editor and
+   paste its whole contents).
+4. Click **Apply**. A few minutes later the app is live at
+   `https://marksheet-xxxx.onrender.com`. Add your own domain under
+   Settings -> Custom Domains if you want one.
+
+After that, every push to the `ec2-port` branch on GitHub is deployed
+automatically. Nothing to do on a server.
+
+### Alternative: your own server (AWS EC2 etc.)
+
+Ubuntu server, download this code, save the key to
 `/opt/mt/service-account.json`, then run the one-command setup:
 
     sudo bash deploy/install.sh
@@ -66,9 +81,6 @@ to update; your settings are kept.
 
 The full click-by-click guide, with diagrams of how it works, is in
 `docs/system-design.html` (also shared as a PDF).
-
-Point your domain's A record at the server (on EC2 use an Elastic IP).
-Security group: open ports 80 and 443, plus 22 for yourself.
 
 ## Notes
 

@@ -1,0 +1,17 @@
+# Render.com blueprint: hosts the app straight from this GitHub repo and
+# redeploys automatically on every push to the branch.
+#
+# Render dashboard -> New -> Blueprint -> pick this repo. It asks for the two
+# values marked "sync: false" when you create it.
+services:
+  - type: web
+    name: marksheet
+    runtime: docker
+    plan: starter            # "free" also works, but the app sleeps when idle and takes ~1 min to wake
+    branch: ec2-port
+    healthCheckPath: /healthz
+    envVars:
+      - key: MT_SHEET_ID     # the long code in the Google Sheet's web address
+        sync: false
+      - key: MT_SA_JSON_CONTENT   # the whole contents of the service account's .json key file
+        sync: false

@@ -1,0 +1,10 @@
+.venv/
+.git/
+__pycache__/
+*.xlsx
+*.json
+*.pdf
+*.env
+docs/
+apps-script/
+deploy/

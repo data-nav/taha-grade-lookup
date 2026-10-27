@@ -53,20 +53,27 @@ Drive API -> create a service account -> create a JSON key -> share the
 spreadsheet with the service account's email as **Editor** -> copy the
 spreadsheet ID from the Sheet's web address.
 
-### Easiest: Render (hosts straight from GitHub, redeploys on every push)
+### Easiest on AWS: App Runner (runs it from GitHub, no server to manage)
 
-1. Sign up at render.com with your GitHub account.
-2. Dashboard -> **New** -> **Blueprint** -> pick this repository. Render reads
-   `render.yaml`.
-3. It asks for two values: `MT_SHEET_ID` (the spreadsheet ID) and
-   `MT_SA_JSON_CONTENT` (open the downloaded key file in a text editor and
-   paste its whole contents).
-4. Click **Apply**. A few minutes later the app is live at
-   `https://marksheet-xxxx.onrender.com`. Add your own domain under
-   Settings -> Custom Domains if you want one.
+1. Sign in to the AWS console, search **App Runner** -> **Create service**.
+2. Source: **Source code repository** -> **Add new** connection -> sign in to
+   GitHub and allow access to `taha-grade-lookup`. Branch: `ec2-port`.
+   Deployment trigger: **Automatic** (every push to GitHub redeploys).
+3. Build settings: **Configure all settings here**. Runtime **Python 3.11**.
+   Build command: `pip install -r requirements.txt`
+   Start command: `uvicorn app:app --host 0.0.0.0 --port 8080`   Port: `8080`
+4. Service name `marksheet`. Smallest size (0.25 vCPU, 0.5 GB) is enough.
+   Environment variables: `MT_SHEET_ID` = the spreadsheet ID, and
+   `MT_SA_JSON_CONTENT` = the whole text of the service account's .json key.
+   Health check: path `/healthz`.
+5. **Create & deploy**. A few minutes later it prints a web address
+   (`https://xxxx.awsapprunner.com`). Add your own domain under **Custom domains**.
 
-After that, every push to the `ec2-port` branch on GitHub is deployed
-automatically. Nothing to do on a server.
+### Also easy: Render (same idea, outside AWS)
+
+Sign up at render.com with GitHub -> **New -> Blueprint** -> pick this repo
+(it reads `render.yaml`) -> enter `MT_SHEET_ID` and `MT_SA_JSON_CONTENT` ->
+**Apply**. About $7/month.
 
 ### Alternative: your own server (AWS EC2 etc.)
 
